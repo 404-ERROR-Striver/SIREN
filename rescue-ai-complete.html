@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RESCUE.AI - Intelligent Disaster Response</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+:root {
+  --bg: #080c14;
+  --surface: #0d1321;
+  --surface2: #111827;
+  --border: rgba(255,255,255,0.07);
+  --primary: #e63946;
+  --primary-glow: rgba(230,57,70,0.3);
+  --accent: #457b9d;
+  --accent2: #a8dadc;
+  --text: #e8eaf0;
+  --text-muted: #6b7280;
+  --critical: #ef4444;
+  --high: #f97316;
+  --moderate: #eab308;
+  --low: #22c55e;
+  --font: 'Sora', sans-serif;
+  --mono: 'Space Mono', monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;}
+
+/* NAV */
+nav{position:fixed;top:0;width:100%;z-index:1000;background:rgba(8,12,20,0.92);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);}
+.nav-inner{max-width:1280px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:64px;padding:0 2rem;}
+.logo{font-size:1.4rem;font-weight:800;letter-spacing:-0.5px;cursor:pointer;}
+.logo span{color:var(--primary);}
+.logo-dot{width:8px;height:8px;background:var(--primary);border-radius:50%;display:inline-block;margin-left:4px;animation:pulse-dot 2s infinite;}
+@keyframes pulse-dot{0%,100%{box-shadow:0 0 0 0 var(--primary-glow);}50%{box-shadow:0 0 0 6px transparent;}}
+.nav-links{display:flex;gap:0.1rem;align-items:center;}
+.nav-link{padding:0.5rem 0.85rem;border-radius:8px;cursor:pointer;font-size:0.85rem;font-weight:500;transition:all 0.2s;color:var(--text-muted);background:none;border:none;font-family:var(--font);}
+.nav-link:hover,.nav-link.active{color:var(--text);background:rgba(255,255,255,0.06);}
+.nav-link.active{color:var(--primary);}
+.nav-actions{display:flex;gap:0.75rem;align-items:center;}
+.btn{padding:0.5rem 1.25rem;border-radius:8px;font-size:0.875rem;font-weight:600;cursor:pointer;transition:all 0.2s;font-family:var(--font);border:none;}
+.btn-ghost{background:transparent;color:var(--text-muted);border:1px solid var(--border);}
+.btn-ghost:hover{border-color:rgba(255,255,255,0.2);color:var(--text);}
+.btn-primary{background:var(--primary);color:#fff;}
+.btn-primary:hover{background:#c1121f;transform:translateY(-1px);box-shadow:0 4px 20px var(--primary-glow);}
+.user-badge{display:flex;align-items:center;gap:0.6rem;background:rgba(255,255,255,0.05);border:1px solid var(--border);padding:0.35rem 0.85rem;border-radius:8px;font-size:0.85rem;}
+.user-avatar{width:26px;height:26px;background:var(--primary);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;color:#fff;}
+
+/* PAGES */
+.page{display:none;padding-top:64px;min-height:100vh;}
+.page.active{display:block;}
+
+/* HERO */
+.hero{background:linear-gradient(135deg,#0d0608 0%,#1a0a0d 40%,#0a0f1e 100%);padding:5rem 2rem 4rem;text-align:center;position:relative;overflow:hidden;border-bottom:1px solid var(--border);}
+.hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 60% 50% at 50% 0%,rgba(230,57,70,0.15) 0%,transparent 70%);}
+.hero-badge{display:inline-flex;align-items:center;gap:0.5rem;background:rgba(230,57,70,0.1);border:1px solid rgba(230,57,70,0.3);padding:0.35rem 1rem;border-radius:999px;font-size:0.75rem;font-family:var(--mono);color:var(--primary);margin-bottom:1.5rem;letter-spacing:0.05em;}
+.live-indicator{width:8px;height:8px;background:var(--primary);border-radius:50%;animation:pulse-dot 1.5s infinite;}
+.hero h1{font-size:clamp(2.2rem,5vw,4rem);font-weight:800;letter-spacing:-2px;line-height:1.05;margin-bottom:1rem;position:relative;}
+.hero h1 em{font-style:normal;color:var(--primary);}
+.hero p{font-size:1.05rem;color:var(--text-muted);max-width:560px;margin:0 auto 2.5rem;line-height:1.7;}
+.hero-actions{display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;}
+.btn-lg{padding:0.85rem 2rem;font-size:1rem;border-radius:10px;}
+.btn-outline{background:transparent;color:var(--text);border:1px solid rgba(255,255,255,0.15);}
+.btn-outline:hover{border-color:rgba(255,255,255,0.3);background:rgba(255,255,255,0.04);}
+
+/* STATS BAR */
+.stats-bar{background:var(--surface);border-bottom:1px solid var(--border);padding:1.25rem 2rem;}
+.stats-inner{max-width:1280px;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;}
+.stat-item{text-align:center;}
+.stat-val{font-size:1.75rem;font-weight:800;font-family:var(--mono);color:var(--primary);}
+.stat-label{font-size:0.75rem;color:var(--text-muted);margin-top:0.15rem;text-transform:uppercase;letter-spacing:0.05em;}
+
+/* SECTION */
+.section{padding:3rem 2rem;}
+.section-inner{max-width:1280px;margin:0 auto;}
+.section-title{font-size:1.4rem;font-weight:700;margin-bottom:1.5rem;display:flex;align-items:center;gap:0.75rem;}
+.section-title::after{content:'';flex:1;height:1px;background:var(--border);}
+
+/* MAP */
+.map-container{border-radius:16px;overflow:hidden;border:1px solid var(--border);position:relative;}
+.map-overlay{position:absolute;top:1rem;left:1rem;z-index:400;background:rgba(8,12,20,0.92);border:1px solid var(--border);border-radius:10px;padding:0.75rem 1rem;font-size:0.8rem;}
+.legend-item{display:flex;align-items:center;gap:0.5rem;margin:0.3rem 0;}
+.legend-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0;}
+
+/* GRIDS */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:2rem;}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;}
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;}
+@media(max-width:900px){.grid-2,.grid-3,.grid-4{grid-template-columns:1fr;}.stats-inner{grid-template-columns:repeat(2,1fr);}}
+
+/* CARDS */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.5rem;transition:border-color 0.2s;}
+.card:hover{border-color:rgba(255,255,255,0.12);}
+
+/* ALERTS */
+.alert-item{background:var(--surface);border-radius:12px;padding:1.25rem;border-left:3px solid transparent;margin-bottom:0.75rem;transition:all 0.2s;animation:slideIn 0.4s ease;}
+@keyframes slideIn{from{opacity:0;transform:translateY(-10px);}to{opacity:1;transform:translateY(0);}}
+.alert-item.critical{border-color:var(--critical);}
+.alert-item.high{border-color:var(--high);}
+.alert-item.moderate{border-color:var(--moderate);}
+.alert-item.low{border-color:var(--low);}
+.alert-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.4rem;}
+.alert-location{font-weight:600;font-size:0.95rem;}
+.severity-badge{font-size:0.7rem;font-family:var(--mono);padding:0.2rem 0.6rem;border-radius:999px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;}
+.badge-critical{background:rgba(239,68,68,0.15);color:var(--critical);}
+.badge-high{background:rgba(249,115,22,0.15);color:var(--high);}
+.badge-moderate{background:rgba(234,179,8,0.15);color:var(--moderate);}
+.badge-low{background:rgba(34,197,94,0.15);color:var(--low);}
+.alert-details{font-size:0.85rem;color:var(--text-muted);margin-bottom:0.4rem;}
+.alert-time{font-size:0.75rem;color:var(--text-muted);font-family:var(--mono);}
+
+/* NEWS */
+.news-item{background:var(--surface);border-radius:12px;padding:1.25rem;border:1px solid var(--border);margin-bottom:0.75rem;transition:all 0.2s;animation:slideIn 0.4s ease;}
+.news-item:hover{border-color:rgba(255,255,255,0.12);transform:translateX(4px);}
+.news-title{font-weight:600;margin-bottom:0.35rem;}
+.news-summary{font-size:0.85rem;color:var(--text-muted);margin-bottom:0.4rem;}
+.news-time{font-size:0.75rem;color:var(--text-muted);font-family:var(--mono);}
+.new-badge{display:inline-block;background:var(--primary);color:#fff;font-size:0.65rem;padding:0.1rem 0.4rem;border-radius:4px;margin-left:0.5rem;font-weight:700;vertical-align:middle;}
+
+/* FORM */
+.form-group{margin-bottom:1.25rem;}
+.form-label{display:block;font-size:0.85rem;font-weight:500;margin-bottom:0.5rem;color:var(--text-muted);}
+.form-control{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.75rem 1rem;font-size:0.9rem;color:var(--text);font-family:var(--font);transition:border-color 0.2s;outline:none;}
+.form-control:focus{border-color:var(--primary);}
+.form-control::placeholder{color:var(--text-muted);}
+select.form-control option{background:var(--surface2);}
+textarea.form-control{resize:vertical;min-height:120px;}
+
+/* FIRST AID - exact match to video */
+.fa-disaster-card{background:#fff;border-radius:14px;border:1px solid #e5e7eb;margin-bottom:1rem;overflow:hidden;border-left:4px solid var(--primary);}
+.fa-disaster-header{padding:1.25rem 1.5rem;display:flex;align-items:center;gap:0.75rem;border-bottom:1px solid #f3f4f6;}
+.fa-disaster-icon{font-size:1.5rem;}
+.fa-disaster-name{font-size:1.1rem;font-weight:700;color:#1f2937;}
+.fa-section{border-bottom:1px solid #f3f4f6;}
+.fa-section:last-child{border-bottom:none;}
+.fa-section-btn{width:100%;display:flex;align-items:center;gap:0.75rem;padding:0.875rem 1.5rem;background:#f9fafb;border:none;cursor:pointer;font-family:var(--font);font-size:0.9rem;font-weight:600;color:#374151;transition:all 0.2s;text-align:left;}
+.fa-section-btn.open{background:var(--primary);color:#fff;}
+.fa-section-btn .fa-arrow{font-size:0.7rem;transition:transform 0.2s;}
+.fa-section-body{display:none;padding:1rem 1.5rem;background:#fff;}
+.fa-section-body.open{display:block;}
+.fa-check-item{display:flex;align-items:flex-start;gap:0.75rem;padding:0.5rem 0;font-size:0.875rem;color:#374151;border-bottom:1px solid #f9fafb;}
+.fa-check-item:last-child{border-bottom:none;}
+.fa-check{color:var(--primary);font-size:1rem;flex-shrink:0;margin-top:1px;}
+
+/* First aid kit list - match video style */
+.kit-list-item{display:flex;align-items:center;gap:0.75rem;padding:0.875rem 0;border-bottom:1px solid rgba(255,255,255,0.06);font-size:0.9rem;}
+.kit-list-item:last-child{border-bottom:none;}
+.kit-icon-sm{font-size:1.1rem;color:var(--accent2);}
+
+/* WHITE SURFACE PAGES (first aid, contact) */
+.light-page{background:#f8fafc;}
+.light-page .section{background:#f8fafc;}
+.light-card{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:1.75rem;box-shadow:0 1px 4px rgba(0,0,0,0.05);}
+.light-title{font-size:1.5rem;font-weight:800;color:#1f2937;margin-bottom:0.25rem;}
+.light-subtitle{font-size:0.875rem;color:#6b7280;margin-bottom:1.5rem;}
+.light-underline{width:40px;height:3px;background:var(--primary);border-radius:2px;margin-bottom:1.5rem;}
+
+/* Contact specific */
+.emergency-contacts-panel{background:var(--primary);border-radius:14px;padding:1.75rem;}
+.emergency-contacts-panel h3{color:#fff;font-size:1.2rem;font-weight:700;text-align:center;margin-bottom:1.25rem;}
+.ec-card{background:rgba(255,255,255,0.2);border-radius:10px;padding:1.1rem;text-align:center;margin-bottom:0.75rem;}
+.ec-card:last-child{margin-bottom:0;}
+.ec-label{color:rgba(255,255,255,0.9);font-size:0.85rem;font-weight:500;margin-bottom:0.25rem;}
+.ec-number{color:#fff;font-size:2rem;font-weight:800;font-family:var(--mono);}
+
+/* Light form for contact */
+.light-form .form-control{background:#f9fafb;border:1px solid #e5e7eb;color:#1f2937;}
+.light-form .form-control:focus{border-color:var(--primary);}
+.light-form .form-control::placeholder{color:#9ca3af;}
+.light-form .form-label{color:#374151;}
+
+/* Auth page */
+.auth-page{background:#f8fafc;display:flex;align-items:center;justify-content:center;min-height:calc(100vh - 64px);padding:2rem;}
+.auth-card{background:#fff;border-radius:16px;padding:2.5rem;width:100%;max-width:440px;box-shadow:0 4px 24px rgba(0,0,0,0.08);}
+.auth-title{font-size:1.5rem;font-weight:800;color:#1f2937;text-align:center;margin-bottom:0.35rem;}
+.auth-sub{font-size:0.875rem;color:#6b7280;text-align:center;margin-bottom:2rem;}
+.auth-tabs{display:flex;border-bottom:2px solid #e5e7eb;margin-bottom:1.75rem;}
+.auth-tab{flex:1;padding:0.75rem;text-align:center;cursor:pointer;font-size:0.9rem;font-weight:600;color:#6b7280;border:none;background:none;font-family:var(--font);border-bottom:2px solid transparent;margin-bottom:-2px;transition:all 0.2s;}
+.auth-tab.active{color:var(--primary);border-bottom-color:var(--primary);}
+.auth-form .form-control{background:#f9fafb;border:1px solid #e5e7eb;color:#1f2937;}
+.auth-form .form-control:focus{border-color:var(--primary);}
+.auth-form .form-control::placeholder{color:#9ca3af;}
+.auth-form .form-label{color:#374151;}
+.auth-btn{width:100%;padding:0.875rem;background:var(--primary);color:#fff;border:none;border-radius:8px;font-size:1rem;font-weight:600;cursor:pointer;font-family:var(--font);transition:all 0.2s;margin-top:0.5rem;}
+.auth-btn:hover{background:#c1121f;}
+.forgot-link{text-align:center;margin-top:1rem;font-size:0.85rem;color:var(--primary);cursor:pointer;}
+
+/* Dashboard */
+.dash-header{background:linear-gradient(135deg,#0d0608,#1a0a0d);padding:3rem 2rem;border-bottom:1px solid var(--border);text-align:center;}
+.dash-header h2{font-size:2rem;font-weight:800;margin-bottom:0.5rem;}
+.dash-header p{color:var(--text-muted);}
+.dash-alert-item{background:var(--surface);border-radius:10px;padding:1.1rem 1.25rem;border-left:3px solid var(--low);margin-bottom:0.75rem;}
+.dash-alert-item.critical{border-color:var(--critical);}
+.dash-alert-item.high{border-color:var(--high);}
+.dash-alert-item.moderate{border-color:var(--moderate);}
+.dash-alert-loc{font-weight:600;margin-bottom:0.2rem;}
+.dash-alert-sev{font-size:0.8rem;color:var(--text-muted);}
+.dash-stat-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.25rem;text-align:center;}
+.dash-stat-num{font-size:2rem;font-weight:800;font-family:var(--mono);color:var(--primary);}
+.dash-stat-lbl{font-size:0.75rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-top:0.25rem;}
+
+/* Page header */
+.page-header{background:linear-gradient(135deg,#0d0608,#1a0a0d);padding:3rem 2rem;border-bottom:1px solid var(--border);position:relative;overflow:hidden;text-align:center;}
+.page-header::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 50% 100% at 50% 100%,rgba(230,57,70,0.1) 0%,transparent 70%);}
+.page-header h2{font-size:2rem;font-weight:800;letter-spacing:-0.5px;margin-bottom:0.5rem;position:relative;}
+.page-header p{color:var(--text-muted);position:relative;}
+
+/* TOASTS */
+#toast-container{position:fixed;top:80px;right:1.5rem;z-index:9999;display:flex;flex-direction:column;gap:0.75rem;max-width:360px;}
+.toast{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1rem 1.25rem;font-size:0.875rem;animation:toastIn 0.4s ease;box-shadow:0 8px 32px rgba(0,0,0,0.4);display:flex;align-items:flex-start;gap:0.75rem;}
+@keyframes toastIn{from{opacity:0;transform:translateX(20px);}to{opacity:1;transform:translateX(0);}}
+.toast.success{border-color:rgba(34,197,94,0.4);}
+.toast.error{border-color:rgba(239,68,68,0.4);}
+.toast.info{border-color:rgba(69,123,157,0.4);}
+.toast-close{margin-left:auto;cursor:pointer;opacity:0.5;font-size:1rem;flex-shrink:0;}
+
+/* TRACK BTN */
+.track-btn{position:fixed;bottom:2rem;right:2rem;z-index:800;background:var(--primary);color:#fff;border:none;border-radius:50px;padding:0.875rem 1.5rem;font-size:0.9rem;font-weight:600;cursor:pointer;font-family:var(--font);display:flex;align-items:center;gap:0.5rem;box-shadow:0 4px 24px var(--primary-glow);transition:all 0.2s;}
+.track-btn:hover{transform:translateY(-2px);box-shadow:0 8px 32px var(--primary-glow);}
+
+/* DIVIDER */
+.divider{height:1px;background:var(--border);margin:1.5rem 0;}
+
+::-webkit-scrollbar{width:6px;}
+::-webkit-scrollbar-track{background:var(--bg);}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:3px;}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-inner">
+    <div class="logo" onclick="showPage('home')">RESCUE<span>.AI</span><span class="logo-dot"></span></div>
+    <div class="nav-links" id="nav-links">
+      <button class="nav-link active" onclick="showPage('home')">Home</button>
+      <button class="nav-link" onclick="showPage('news')">News</button>
+      <button class="nav-link" onclick="showPage('map')">Map</button>
+      <button class="nav-link" onclick="showPage('alerts')">Alerts</button>
+      <button class="nav-link" onclick="showPage('firstaid')">First Aid</button>
+      <button class="nav-link" onclick="showPage('contact')">Contact</button>
+    </div>
+    <div class="nav-actions" id="nav-actions">
+      <button class="btn btn-ghost" onclick="showPage('auth')">Sign In</button>
+      <button class="btn btn-primary" onclick="showPage('auth')">Register</button>
+    </div>
+  </div>
+</nav>
+
+<div id="toast-container"></div>
+<button class="track-btn" onclick="trackLocation()">📍 Track My Location</button>
+
+<!-- ===== HOME ===== -->
+<div id="page-home" class="page active">
+  <div class="hero">
+    <div class="hero-badge"><span class="live-indicator"></span>LIVE MONITORING ACTIVE</div>
+    <h1>RESCUE<em>.AI</em><br>Intelligent Disaster Response</h1>
+    <p>Real-time emergency monitoring, AI-powered alerts, and community disaster response coordination across India.</p>
+    <div class="hero-actions">
+      <button class="btn btn-primary btn-lg" onclick="showPage('alerts')">🚨 Emergency Alerts</button>
+      <button class="btn btn-outline btn-lg" onclick="showPage('map')">🗺️ Live Updates</button>
+    </div>
+  </div>
+  <div class="stats-bar">
+    <div class="stats-inner">
+      <div class="stat-item"><div class="stat-val" id="stat-active">4</div><div class="stat-label">Active Alerts</div></div>
+      <div class="stat-item"><div class="stat-val" id="stat-critical">1</div><div class="stat-label">Critical Zones</div></div>
+      <div class="stat-item"><div class="stat-val" id="stat-news">4</div><div class="stat-label">Live Updates</div></div>
+      <div class="stat-item"><div class="stat-val">50km</div><div class="stat-label">Proximity Scan</div></div>
+    </div>
+  </div>
+  <div class="section">
+    <div class="section-inner">
+      <div class="grid-2">
+        <div>
+          <div class="section-title">Latest Disaster Reports</div>
+          <div id="home-alerts-list"></div>
+        </div>
+        <div>
+          <div class="section-title">Emergency Map</div>
+          <div class="map-container" style="height:420px;">
+            <div id="home-map" style="height:100%;"></div>
+            <div class="map-overlay">
+              <div style="font-size:0.72rem;font-weight:600;margin-bottom:0.5rem;font-family:var(--mono);color:var(--text-muted);">SEVERITY</div>
+              <div class="legend-item"><div class="legend-dot" style="background:var(--critical)"></div>Critical</div>
+              <div class="legend-item"><div class="legend-dot" style="background:var(--high)"></div>High</div>
+              <div class="legend-item"><div class="legend-dot" style="background:var(--moderate)"></div>Moderate</div>
+              <div class="legend-item"><div class="legend-dot" style="background:var(--low)"></div>Low</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== NEWS ===== -->
+<div id="page-news" class="page">
+  <div class="page-header">
+    <h2>Disaster News &amp; Updates</h2>
+    <p>Stay informed with the latest news and updates on disasters and emergency situations.</p>
+  </div>
+  <div class="section">
+    <div class="section-inner" style="max-width:760px;">
+      <div class="section-title">Live Feed</div>
+      <div id="news-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MAP ===== -->
+<div id="page-map" class="page">
+  <div class="page-header">
+    <h2>Emergency Alert Map</h2>
+    <p>Real-time interactive map showing all active emergency zones across India.</p>
+  </div>
+  <div class="section">
+    <div class="section-inner">
+      <div class="map-container" style="height:560px;">
+        <div id="main-map" style="height:100%;"></div>
+        <div class="map-overlay">
+          <div style="font-size:0.72rem;font-weight:600;margin-bottom:0.5rem;font-family:var(--mono);color:var(--text-muted);">SEVERITY LEVELS</div>
+          <div class="legend-item"><div class="legend-dot" style="background:var(--critical)"></div>Critical</div>
+          <div class="legend-item"><div class="legend-dot" style="background:var(--high)"></div>High</div>
+          <div class="legend-item"><div class="legend-dot" style="background:var(--moderate)"></div>Moderate</div>
+          <div class="legend-item"><div class="legend-dot" style="background:var(--low)"></div>Low</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== ALERTS ===== -->
+<div id="page-alerts" class="page">
+  <div class="page-header">
+    <h2>Emergency Alert System</h2>
+    <p>Report and monitor emergencies in real-time. All alerts are shared with emergency response teams.</p>
+  </div>
+  <div class="section">
+    <div class="section-inner">
+      <div class="grid-2">
+        <div>
+          <div class="card">
+            <div style="font-size:1.1rem;font-weight:700;margin-bottom:0.4rem;">Create Emergency Alert</div>
+            <div style="font-size:0.85rem;color:var(--text-muted);margin-bottom:1.5rem;">Fill in the details to trigger an emergency alert</div>
+            <div class="form-group">
+              <label class="form-label">Location</label>
+              <input class="form-control" id="alert-location" placeholder="Enter affected location"/>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Severity Level</label>
+              <select class="form-control" id="alert-severity">
+                <option value="low">Low</option>
+                <option value="moderate">Moderate</option>
+                <option value="high">High</option>
+                <option value="critical">Critical</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Emergency Details</label>
+              <textarea class="form-control" id="alert-details" placeholder="Describe the emergency situation in detail"></textarea>
+            </div>
+            <button class="btn btn-primary" style="width:100%;padding:0.875rem;font-size:1rem;" onclick="submitAlert()">🚨 Trigger Emergency Alert</button>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:1.1rem;font-weight:700;margin-bottom:1rem;">Emergency Alerts Map</div>
+          <div class="map-container" style="height:320px;margin-bottom:1.5rem;">
+            <div id="alert-map" style="height:100%;"></div>
+          </div>
+          <div style="font-size:1rem;font-weight:700;margin-bottom:1rem;">Active Alerts</div>
+          <div id="alerts-list" style="max-height:320px;overflow-y:auto;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== FIRST AID ===== -->
+<div id="page-firstaid" class="page light-page">
+  <div style="background:linear-gradient(135deg,#e63946,#a8153e);padding:3rem 2rem;text-align:center;">
+    <h2 style="color:#fff;font-size:2rem;font-weight:800;margin-bottom:0.5rem;">Disaster First Aid Management</h2>
+    <p style="color:rgba(255,255,255,0.8);">Learn essential first aid techniques and preparedness strategies to manage emergencies effectively.</p>
+  </div>
+  <div class="section" style="background:#f8fafc;">
+    <div class="section-inner">
+      <div class="grid-2" style="align-items:start;">
+        <!-- LEFT: Disaster accordion -->
+        <div>
+          <div class="light-card">
+            <div class="light-title">Disaster-Specific Preparedness and First Aid</div>
+            <div class="light-underline"></div>
+
+            <!-- EARTHQUAKE -->
+            <div class="fa-disaster-card">
+              <div class="fa-disaster-header">
+                <span class="fa-disaster-icon">🌍</span>
+                <span class="fa-disaster-name">Earthquake</span>
+              </div>
+              <div class="fa-section">
+                <button class="fa-section-btn" onclick="toggleFASection(this)"><span class="fa-arrow">▶</span> Before</button>
+                <div class="fa-section-body">
+                  <div class="fa-check-item"><span class="fa-check">✓</span>Secure furniture, heavy objects, and appliances.</div>
+                  <div class="fa-check-item"><span class="fa-check">✓</span>Identify safe spots (under sturdy tables, doorways).</div>
+                  <div class="fa-check-item"><span class="fa-check">✓</span>Keep an emergency kit ready (water, food, flashlight).</div>
+                </div>
+              </div>
+              <div class="fa-section">
+                <button class="fa-section-btn" onclick="toggleFASection(this)"><span class="fa-arrow">▶</span> During</button>
+                <div class="fa-section-body">
+                  <div class="fa-check-item"><span class="fa-check">✓</span>Indoors: Drop, Cover, and Hold under a sturdy object. Stay away from windows.</div>
+                  <div class="fa-check-item"><span class="fa-check">✓</span>Outdoors: Move to an open area away from buildings, trees, and power lines.</div>
+                  <div class="fa-check-item"><span class="fa-check">✓</span>In a Vehicle: Stop safely away from bridges and buildings. Stay inside.</div>
+                </div>
+              </div>
+              <div class="fa-section">
+                <button class="fa-section-btn" onclick="toggleFASection(this)"><span class="fa-arrow">▶</span> After</button>
+                <div class="fa-section-body">
+                  <div class="fa-check-item"><span class="fa-check">✓</span>Expect aftershocks; move to an open, safe location.</div>
+                  <div class="fa-check-item"><span class="fa-check">✓</span>Check for injuries and apply first aid.</div>
+                  <div class="fa-check-item"><span class="fa-check">✓</span>Inspect gas, water, and electrical lines for damage.</div>
+                  <div class="fa-check-item"><span class="fa-check">✓</span>Avoid using elevators and unstable structures.</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- FLOOD -->
+            <div class="fa-disaster-card">
+              <div class="fa-disaster-header">
+                <span class="fa-disaster-icon">🌊</span>
+                <span class="fa-disaster-name">Flood</span>
+              </div>
+              <div class="fa-section">
+                <button class="fa-section-btn" onclick="toggleFASection(this)"><span class="fa-arrow">▶</span> Before</button>
+                <div class="fa-section-body">
+                  <div class="fa-check-item"><span class="fa-check">✓</span>Know your evacuation route and nearest shelter location.</div>
+                  <div class="fa-check-item"><span class="fa-check">✓</span>Store emergency supplies on upper floors.</div>
+                  <div class="fa-check-item"><span class="fa-check">✓</span>Keep important documents in waterproof containers.</div>
+                </div>
+              </div>
+              <div class="fa-section">
+                <button class="fa-section-btn" onclick="toggleFASection(this)"><span class="fa-arrow">▶</span> During</button>
+                <div class="fa-section-body">
+                  <div class="fa-check-item"><span class="fa-check">✓</span>Evacuate immediately when instructed. Move to high ground.</div>
+                  <div class="fa-check-item"><span class="fa-check">✓</span>Never walk, swim, or drive through flood waters.</div>
+                  <div class="fa-check-item"><span class="fa-check">✓</span>If trapped, go to the highest level — only to the roof if necessary.</div>
+                </div>
+              </div>
+              <div class="fa-section">
+                <button class="fa-section-btn" onclick="toggleFASection(this)"><span class="fa-arrow">▶</span> After</button>
+                <div class="fa-section-body">
+                  <div class="fa-check-item"><span class="fa-check">✓</span>Avoid contact with floodwater — it may be contaminated.</div>
+                  <div class="fa-check-item"><span class="fa-check">✓</span>Boil or purify water before drinking.</div>
+                  <div class="fa-check-item"><span class="fa-check">✓</span>Document damage for insurance and relief assistance.</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- CYCLONE -->
+            <div class="fa-disaster-card">
+              <div class="fa-disaster-header">
+                <span class="fa-disaster-icon">🌀</span>
+                <span class="fa-disaster-name">Cyclone</span>
+              </div>
+              <div class="fa-section">
+                <button class="fa-section-btn" onclick="toggleFASection(this)"><span class="fa-arrow">▶</span> Before</button>
+                <div class="fa-section-body">
+                  <div class="fa-check-item"><span class="fa-check">✓</span>Follow cyclone warnings from IMD. Board up windows and doors.</div>
+                  <div class="fa-check-item"><span class="fa-check">✓</span>Store 3–7 days of food, water and emergency supplies.</div>
+                </div>
+              </div>
+              <div class="fa-section">
+                <button class="fa-section-btn" onclick="toggleFASection(this)"><span class="fa-arrow">▶</span> During</button>
+                <div class="fa-section-body">
+                  <div class="fa-check-item"><span class="fa-check">✓</span>Stay indoors in the strongest part of the building.</div>
+                  <div class="fa-check-item"><span class="fa-check">✓</span>The eye of the storm may cause brief calm — do not go outside.</div>
+                </div>
+              </div>
+              <div class="fa-section">
+                <button class="fa-section-btn" onclick="toggleFASection(this)"><span class="fa-arrow">▶</span> After</button>
+                <div class="fa-section-body">
+                  <div class="fa-check-item"><span class="fa-check">✓</span>Watch for downed power lines and structural damage.</div>
+                  <div class="fa-check-item"><span class="fa-check">✓</span>Use generators outdoors only to avoid CO poisoning.</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- FIRE -->
+            <div class="fa-disaster-card">
+              <div class="fa-disaster-header">
+                <span class="fa-disaster-icon">🔥</span>
+                <span class="fa-disaster-name">Fire Emergency</span>
+              </div>
+              <div class="fa-section">
+                <button class="fa-section-btn" onclick="toggleFASection(this)"><span class="fa-arrow">▶</span> Before</button>
+                <div class="fa-section-body">
+                  <div class="fa-check-item"><span class="fa-check">✓</span>Install smoke detectors on every level of your home.</div>
+                  <div class="fa-check-item"><span class="fa-check">✓</span>Plan and practice two escape routes from every room.</div>
+                </div>
+              </div>
+              <div class="fa-section">
+                <button class="fa-section-btn" onclick="toggleFASection(this)"><span class="fa-arrow">▶</span> During</button>
+                <div class="fa-section-body">
+                  <div class="fa-check-item"><span class="fa-check">✓</span>RACE: Rescue, Alert, Confine, Extinguish/Evacuate.</div>
+                  <div class="fa-check-item"><span class="fa-check">✓</span>Stay low under smoke. Feel doors before opening — if hot, find another exit.</div>
+                  <div class="fa-check-item"><span class="fa-check">✓</span>Call 101 immediately.</div>
+                </div>
+              </div>
+              <div class="fa-section">
+                <button class="fa-section-btn" onclick="toggleFASection(this)"><span class="fa-arrow">▶</span> After</button>
+                <div class="fa-section-body">
+                  <div class="fa-check-item"><span class="fa-check">✓</span>For burns: cool with running cold water for 10 minutes.</div>
+                  <div class="fa-check-item"><span class="fa-check">✓</span>Do not re-enter building until fire department clears it.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT: Kit essentials -->
+        <div>
+          <div class="light-card">
+            <div class="light-title">First Aid Kit Essentials</div>
+            <div class="light-underline"></div>
+            <div class="kit-list-item" style="border-bottom:1px solid #f3f4f6;padding:0.75rem 0;color:#374151;"><span style="font-size:1.1rem;margin-right:0.5rem;">🩺</span> Bandages and gauze</div>
+            <div class="kit-list-item" style="border-bottom:1px solid #f3f4f6;padding:0.75rem 0;color:#374151;"><span style="font-size:1.1rem;margin-right:0.5rem;">🩺</span> Antiseptic wipes</div>
+            <div class="kit-list-item" style="border-bottom:1px solid #f3f4f6;padding:0.75rem 0;color:#374151;"><span style="font-size:1.1rem;margin-right:0.5rem;">🩺</span> Adhesive tape</div>
+            <div class="kit-list-item" style="border-bottom:1px solid #f3f4f6;padding:0.75rem 0;color:#374151;"><span style="font-size:1.1rem;margin-right:0.5rem;">🩺</span> Pain relievers</div>
+            <div class="kit-list-item" style="border-bottom:1px solid #f3f4f6;padding:0.75rem 0;color:#374151;"><span style="font-size:1.1rem;margin-right:0.5rem;">🩺</span> Scissors and tweezers</div>
+            <div class="kit-list-item" style="border-bottom:1px solid #f3f4f6;padding:0.75rem 0;color:#374151;"><span style="font-size:1.1rem;margin-right:0.5rem;">🩺</span> Thermometer</div>
+            <div class="kit-list-item" style="border-bottom:1px solid #f3f4f6;padding:0.75rem 0;color:#374151;"><span style="font-size:1.1rem;margin-right:0.5rem;">🩺</span> Flashlight &amp; batteries</div>
+            <div class="kit-list-item" style="border-bottom:1px solid #f3f4f6;padding:0.75rem 0;color:#374151;"><span style="font-size:1.1rem;margin-right:0.5rem;">🩺</span> Latex gloves</div>
+            <div class="kit-list-item" style="border-bottom:1px solid #f3f4f6;padding:0.75rem 0;color:#374151;"><span style="font-size:1.1rem;margin-right:0.5rem;">🩺</span> Water purification tablets</div>
+            <div class="kit-list-item" style="padding:0.75rem 0;color:#374151;"><span style="font-size:1.1rem;margin-right:0.5rem;">🩺</span> Emergency radio</div>
+          </div>
+
+          <div class="light-card" style="margin-top:1.5rem;">
+            <div class="light-title">Quick Helplines</div>
+            <div class="light-underline"></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
+              <div style="background:#fff0f0;border:1px solid #fecaca;border-radius:10px;padding:1rem;text-align:center;">
+                <div style="font-size:0.8rem;color:#6b7280;">National Emergency</div>
+                <div style="font-size:2rem;font-weight:800;color:var(--primary);font-family:var(--mono);">112</div>
+              </div>
+              <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:1rem;text-align:center;">
+                <div style="font-size:0.8rem;color:#6b7280;">Police</div>
+                <div style="font-size:2rem;font-weight:800;color:#0369a1;font-family:var(--mono);">100</div>
+              </div>
+              <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:1rem;text-align:center;">
+                <div style="font-size:0.8rem;color:#6b7280;">Fire</div>
+                <div style="font-size:2rem;font-weight:800;color:#ea580c;font-family:var(--mono);">101</div>
+              </div>
+              <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:1rem;text-align:center;">
+                <div style="font-size:0.8rem;color:#6b7280;">Ambulance</div>
+                <div style="font-size:2rem;font-weight:800;color:#16a34a;font-family:var(--mono);">108</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== CONTACT ===== -->
+<div id="page-contact" class="page light-page">
+  <div style="background:linear-gradient(135deg,#e63946,#a8153e);padding:3rem 2rem;text-align:center;">
+    <h2 style="color:#fff;font-size:2rem;font-weight:800;margin-bottom:0.5rem;">Contact Us</h2>
+    <p style="color:rgba(255,255,255,0.8);">Reach out to our team for support or information about emergency services.</p>
+  </div>
+  <div class="section" style="background:#f8fafc;">
+    <div class="section-inner">
+      <div class="grid-2" style="align-items:start;">
+        <!-- Emergency Contacts Panel -->
+        <div>
+          <div class="emergency-contacts-panel">
+            <h3>Emergency Contacts</h3>
+            <div class="ec-card">
+              <div class="ec-label">National Emergency Helpline</div>
+              <div class="ec-number">112</div>
+            </div>
+            <div class="ec-card">
+              <div class="ec-label">Police</div>
+              <div class="ec-number">100</div>
+            </div>
+            <div class="ec-card">
+              <div class="ec-label">Fire</div>
+              <div class="ec-number">101</div>
+            </div>
+            <div class="ec-card">
+              <div class="ec-label">Ambulance</div>
+              <div class="ec-number">102</div>
+            </div>
+          </div>
+        </div>
+        <!-- Message Form + Contact Info -->
+        <div>
+          <div class="light-card">
+            <div class="light-title">Send Us a Message</div>
+            <div class="light-underline"></div>
+            <div class="light-form">
+              <div class="form-group">
+                <input class="form-control" id="contact-name" placeholder="Your Name"/>
+              </div>
+              <div class="form-group">
+                <input class="form-control" id="contact-email" placeholder="Your Email" type="email"/>
+              </div>
+              <div class="form-group">
+                <textarea class="form-control" id="contact-message" placeholder="Your Message" style="min-height:120px;"></textarea>
+              </div>
+              <button class="btn btn-primary" style="width:100%;padding:0.875rem;font-size:1rem;" onclick="submitContact()">Send Message</button>
+            </div>
+
+            <div style="margin-top:1.75rem;">
+              <div style="font-size:1rem;font-weight:700;color:#1f2937;margin-bottom:0.75rem;">Contact Information</div>
+              <div style="font-size:0.875rem;color:#374151;margin-bottom:0.4rem;">Email: <a href="mailto:info@rescue.ai" style="color:var(--primary);">info@rescue.ai</a></div>
+              <div style="font-size:0.875rem;color:#374151;margin-bottom:0.4rem;">Phone: +91 123-456-7890</div>
+              <div style="font-size:0.875rem;color:#374151;">Address: 123 Emergency Avenue, New Delhi, India</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div style="background:#1f2937;padding:1rem;text-align:center;font-size:0.85rem;color:#9ca3af;">
+    © 2025 RESCUE.AI | AI-Driven Crisis Management Platform
+  </div>
+</div>
+
+<!-- ===== AUTH ===== -->
+<div id="page-auth" class="page">
+  <div class="auth-page">
+    <div class="auth-card">
+      <div class="auth-title">Welcome to RESCUE.AI</div>
+      <div class="auth-sub">Sign in or register to access advanced features</div>
+      <div class="auth-tabs">
+        <button class="auth-tab active" id="tab-signin" onclick="switchAuthTab('signin')">Sign In</button>
+        <button class="auth-tab" id="tab-register" onclick="switchAuthTab('register')">Register</button>
+      </div>
+      <!-- Sign In Form -->
+      <div id="auth-signin" class="auth-form">
+        <div class="form-group">
+          <input class="form-control" id="signin-username" placeholder="Username" />
+        </div>
+        <div class="form-group">
+          <input class="form-control" id="signin-password" placeholder="Password" type="password"/>
+        </div>
+        <button class="auth-btn" onclick="doSignIn()">Sign In</button>
+        <div class="forgot-link" onclick="showToast('info','🔑','Password reset link sent to your email!')">Forgot Password?</div>
+      </div>
+      <!-- Register Form -->
+      <div id="auth-register" class="auth-form" style="display:none;">
+        <div class="form-group">
+          <input class="form-control" id="reg-name" placeholder="Full Name" />
+        </div>
+        <div class="form-group">
+          <input class="form-control" id="reg-email" placeholder="Email Address" type="email"/>
+        </div>
+        <div class="form-group">
+          <input class="form-control" id="reg-username" placeholder="Username" />
+        </div>
+        <div class="form-group">
+          <input class="form-control" id="reg-password" placeholder="Password" type="password"/>
+        </div>
+        <button class="auth-btn" onclick="doRegister()">Create Account</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== DASHBOARD ===== -->
+<div id="page-dashboard" class="page">
+  <div class="dash-header">
+    <h2>User Dashboard</h2>
+    <p>Welcome to your RESCUE.AI dashboard. Manage your alerts and settings here.</p>
+  </div>
+  <div class="section">
+    <div class="section-inner">
+      <!-- Stats -->
+      <div class="grid-4" style="margin-bottom:2rem;">
+        <div class="dash-stat-card"><div class="dash-stat-num" id="dash-stat-total">0</div><div class="dash-stat-lbl">My Reports</div></div>
+        <div class="dash-stat-card"><div class="dash-stat-num" id="dash-stat-active">4</div><div class="dash-stat-lbl">Active Alerts</div></div>
+        <div class="dash-stat-card"><div class="dash-stat-num">50km</div><div class="dash-stat-lbl">Watch Zone</div></div>
+        <div class="dash-stat-card"><div class="dash-stat-num" style="color:var(--low);">Safe</div><div class="dash-stat-lbl">Your Status</div></div>
+      </div>
+      <div class="section-title">Your Recent Alerts</div>
+      <div style="max-width:680px;">
+        <div id="dashboard-alerts"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== DATA =====
+const severityColors = { critical:'#ef4444', high:'#f97316', moderate:'#eab308', low:'#22c55e' };
+let currentUser = null;
+let userAlerts = [];
+
+let appData = {
+  alerts: [
+    { id:1, location:'Mumbai, Maharashtra', severity:'high', details:'Heavy flooding reported across low-lying areas.', lat:19.076, lng:72.877, time:new Date(Date.now()-3600000).toISOString() },
+    { id:2, location:'Delhi NCR', severity:'critical', details:'Severe air pollution — AQI exceeds 500.', lat:28.704, lng:77.102, time:new Date(Date.now()-7200000).toISOString() },
+    { id:3, location:'Chennai, Tamil Nadu', severity:'moderate', details:'Cyclone approaching the Bay of Bengal coast.', lat:13.082, lng:80.27, time:new Date(Date.now()-10800000).toISOString() },
+    { id:4, location:'Himachal Pradesh', severity:'low', details:'Minor landslides on mountain roads.', lat:31.1, lng:77.17, time:new Date(Date.now()-14400000).toISOString() },
+  ],
+  news: [
+    { id:1, title:'Flood Warning Issued', summary:'Flood warnings for western coastal regions as heavy rains continue.', time:new Date(Date.now()-1800000).toISOString(), isNew:false },
+    { id:2, title:'Emergency Services in Chennai', summary:'NDRF teams deployed to coastal areas ahead of cyclone.', time:new Date(Date.now()-5400000).toISOString(), isNew:false },
+    { id:3, title:'Delhi Schools Closed', summary:'Schools remain closed due to hazardous air quality levels.', time:new Date(Date.now()-21600000).toISOString(), isNew:false },
+    { id:4, title:'Relief Camps in Maharashtra', summary:'Camps established to house over 10,000 flood victims.', time:new Date(Date.now()-86400000).toISOString(), isNew:false },
+  ]
+};
+
+// ===== MAPS =====
+let maps = {}, markerLayers = {};
+function initMap(id, lat, lng, zoom) {
+  if (maps[id]) { maps[id].remove(); delete maps[id]; }
+  const m = L.map(id, {zoomControl:true}).setView([lat,lng],zoom);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(m);
+  maps[id] = m;
+  markerLayers[id] = L.layerGroup().addTo(m);
+}
+function refreshMarkers(id) {
+  if (!maps[id]) return;
+  markerLayers[id].clearLayers();
+  appData.alerts.forEach(a => {
+    if (!a.lat || !a.lng) return;
+    const c = severityColors[a.severity]||'#888';
+    const icon = L.divIcon({ className:'', html:`<div style="width:14px;height:14px;background:${c};border-radius:50%;border:2px solid rgba(255,255,255,0.6);box-shadow:0 0 8px ${c}88;"></div>`, iconSize:[14,14], iconAnchor:[7,7] });
+    L.marker([a.lat,a.lng],{icon}).bindPopup(`<b>${a.location}</b><br><span style="color:${c};text-transform:capitalize;">${a.severity}</span><br>${a.details}`).addTo(markerLayers[id]);
+  });
+}
+
+// ===== TIME =====
+function timeAgo(iso) {
+  const s = (Date.now()-new Date(iso))/1000;
+  if(s<60) return 'just now';
+  if(s<3600) return Math.floor(s/60)+'m ago';
+  if(s<86400) return Math.floor(s/3600)+'h ago';
+  return new Date(iso).toLocaleDateString();
+}
+
+// ===== RENDER =====
+function renderAlerts() {
+  ['home-alerts-list','alerts-list'].forEach(id=>{
+    const el=document.getElementById(id); if(!el) return;
+    el.innerHTML = appData.alerts.map(a=>`
+      <div class="alert-item ${a.severity}">
+        <div class="alert-header"><span class="alert-location">📍 ${a.location}</span><span class="severity-badge badge-${a.severity}">${a.severity}</span></div>
+        <div class="alert-details">${a.details}</div>
+        <div class="alert-time">${timeAgo(a.time)}</div>
+      </div>`).join('');
+  });
+  document.getElementById('stat-active').textContent = appData.alerts.length;
+  document.getElementById('stat-critical').textContent = appData.alerts.filter(a=>a.severity==='critical').length;
+  const dashStat = document.getElementById('dash-stat-active');
+  if(dashStat) dashStat.textContent = appData.alerts.length;
+}
+
+function renderNews() {
+  const el=document.getElementById('news-list'); if(!el) return;
+  el.innerHTML = appData.news.map(n=>`
+    <div class="news-item">
+      <div class="news-title">${n.title}${n.isNew?'<span class="new-badge">NEW</span>':''}</div>
+      <div class="news-summary">${n.summary}</div>
+      <div class="news-time">${timeAgo(n.time)}</div>
+    </div>`).join('');
+  document.getElementById('stat-news').textContent = appData.news.length;
+}
+
+function renderDashboard() {
+  const el = document.getElementById('dashboard-alerts'); if(!el) return;
+  const list = [...userAlerts, ...appData.alerts.slice(0,3)];
+  if(list.length===0){ el.innerHTML='<div style="color:var(--text-muted);padding:2rem;text-align:center;">No alerts reported yet.</div>'; return; }
+  el.innerHTML = list.map(a=>`
+    <div class="dash-alert-item ${a.severity}">
+      <div class="dash-alert-loc">📍 ${a.location}</div>
+      <div class="dash-alert-sev"><strong>Severity:</strong> ${a.severity.charAt(0).toUpperCase()+a.severity.slice(1)}</div>
+      <div class="dash-alert-sev" style="margin-top:0.2rem;">${a.details}</div>
+    </div>`).join('');
+  const st = document.getElementById('dash-stat-total');
+  if(st) st.textContent = userAlerts.length;
+}
+
+// ===== FIRST AID TOGGLE =====
+function toggleFASection(btn) {
+  const body = btn.nextElementSibling;
+  const isOpen = btn.classList.contains('open');
+  // Close all in same disaster card
+  btn.closest('.fa-disaster-card').querySelectorAll('.fa-section-btn').forEach(b=>{ b.classList.remove('open'); b.querySelector('.fa-arrow').textContent='▶'; b.nextElementSibling.classList.remove('open'); });
+  if(!isOpen) { btn.classList.add('open'); btn.querySelector('.fa-arrow').textContent='▼'; body.classList.add('open'); }
+}
+
+// ===== SUBMIT ALERT =====
+function submitAlert() {
+  const loc = document.getElementById('alert-location').value.trim();
+  const sev = document.getElementById('alert-severity').value;
+  const det = document.getElementById('alert-details').value.trim();
+  if(!loc||!det){ showToast('error','⚠️','Please fill in all fields.'); return; }
+  const a = { id:Date.now(), location:loc, severity:sev, details:det, lat:null, lng:null, time:new Date().toISOString() };
+  appData.alerts.unshift(a);
+  if(currentUser) userAlerts.unshift(a);
+  renderAlerts();
+  renderDashboard();
+  ['home-map','main-map','alert-map'].forEach(id=>refreshMarkers(id));
+  showToast('success','✅',`Alert sent successfully!`);
+  showToast('info','🚨',`New emergency alert: ${loc}`);
+  document.getElementById('alert-location').value='';
+  document.getElementById('alert-details').value='';
+}
+
+// ===== CONTACT =====
+function submitContact() {
+  const n=document.getElementById('contact-name').value.trim();
+  const e=document.getElementById('contact-email').value.trim();
+  const m=document.getElementById('contact-message').value.trim();
+  if(!n||!e||!m){ showToast('error','⚠️','Please fill all fields.'); return; }
+  showToast('success','✅','Message sent! We will get back to you soon.');
+  document.getElementById('contact-name').value='';
+  document.getElementById('contact-email').value='';
+  document.getElementById('contact-message').value='';
+}
+
+// ===== AUTH =====
+function switchAuthTab(tab) {
+  document.getElementById('tab-signin').classList.toggle('active', tab==='signin');
+  document.getElementById('tab-register').classList.toggle('active', tab==='register');
+  document.getElementById('auth-signin').style.display = tab==='signin'?'block':'none';
+  document.getElementById('auth-register').style.display = tab==='register'?'block':'none';
+}
+
+function doSignIn() {
+  const u=document.getElementById('signin-username').value.trim();
+  const p=document.getElementById('signin-password').value;
+  if(!u||!p){ showToast('error','⚠️','Please enter username and password.'); return; }
+  currentUser = { name:u };
+  setLoggedIn(u);
+  showToast('success','✅',`Welcome back, ${u}!`);
+  showPage('dashboard');
+}
+
+function doRegister() {
+  const n=document.getElementById('reg-name').value.trim();
+  const u=document.getElementById('reg-username').value.trim();
+  const p=document.getElementById('reg-password').value;
+  if(!n||!u||!p){ showToast('error','⚠️','Please fill in all fields.'); return; }
+  currentUser = { name:n, username:u };
+  setLoggedIn(n);
+  showToast('success','✅',`Account created! Welcome, ${n}!`);
+  showPage('dashboard');
+}
+
+function setLoggedIn(name) {
+  const actions = document.getElementById('nav-actions');
+  actions.innerHTML = `
+    <div class="user-badge"><div class="user-avatar">${name[0].toUpperCase()}</div>${name}</div>
+    <button class="btn btn-ghost" onclick="doSignOut()">Sign Out</button>`;
+  // Add dashboard link
+  const links = document.getElementById('nav-links');
+  if(!document.getElementById('nav-dashboard')) {
+    const db = document.createElement('button');
+    db.className='nav-link'; db.id='nav-dashboard';
+    db.textContent='Dashboard';
+    db.onclick=()=>showPage('dashboard');
+    links.appendChild(db);
+  }
+}
+
+function doSignOut() {
+  currentUser = null;
+  userAlerts = [];
+  document.getElementById('nav-actions').innerHTML=`
+    <button class="btn btn-ghost" onclick="showPage('auth')">Sign In</button>
+    <button class="btn btn-primary" onclick="showPage('auth')">Register</button>`;
+  const db=document.getElementById('nav-dashboard');
+  if(db) db.remove();
+  showToast('info','👋','You have been signed out.');
+  showPage('home');
+}
+
+// ===== TRACK LOCATION =====
+function trackLocation() {
+  if(!navigator.geolocation){ showToast('error','❌','Geolocation not supported.'); return; }
+  showToast('info','📍','Locating your position...');
+  navigator.geolocation.getCurrentPosition(pos=>{
+    const {latitude:lat,longitude:lng} = pos.coords;
+    showToast('success','✅','Location tracked successfully!');
+    const R=6371;
+    const nearby = appData.alerts.filter(a=>{
+      if(!a.lat||!a.lng) return false;
+      const dL=(a.lat-lat)*Math.PI/180, dG=(a.lng-lng)*Math.PI/180;
+      const aa=Math.sin(dL/2)**2+Math.cos(lat*Math.PI/180)*Math.cos(a.lat*Math.PI/180)*Math.sin(dG/2)**2;
+      return R*2*Math.atan2(Math.sqrt(aa),Math.sqrt(1-aa))<=50;
+    });
+    setTimeout(()=>{
+      if(nearby.length===0) showToast('success','🟢','No disasters reported in your vicinity.');
+      else showToast('error','🚨',`${nearby.length} disaster(s) detected within 50km!`);
+    },800);
+    // Add pin to all active maps
+    Object.keys(maps).forEach(id=>{
+      const icon=L.divIcon({className:'',html:'<div style="width:16px;height:16px;background:#3b82f6;border-radius:50%;border:3px solid #fff;box-shadow:0 0 12px #3b82f699;"></div>',iconSize:[16,16],iconAnchor:[8,8]});
+      L.marker([lat,lng],{icon}).bindPopup('<b>Your Current Location</b>').openPopup().addTo(markerLayers[id]);
+      maps[id].setView([lat,lng],10);
+    });
+  },()=>showToast('error','❌','Could not get your location.'));
+}
+
+// ===== TOAST =====
+function showToast(type, icon, msg) {
+  const c=document.getElementById('toast-container');
+  const t=document.createElement('div');
+  t.className=`toast ${type}`;
+  t.innerHTML=`<span>${icon}</span><span>${msg}</span><span class="toast-close" onclick="this.parentElement.remove()">✕</span>`;
+  c.appendChild(t);
+  setTimeout(()=>t.remove(),5000);
+}
+
+// ===== NAV =====
+let mapsInited={};
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-link').forEach(l=>l.classList.remove('active'));
+  const page = document.getElementById(`page-${name}`);
+  if(page) page.classList.add('active');
+  document.querySelectorAll('.nav-link').forEach(l=>{ if(l.textContent.toLowerCase()===name||(name==='home'&&l.textContent==='Home')) l.classList.add('active'); });
+
+  setTimeout(()=>{
+    if(name==='home'&&!mapsInited.home){ mapsInited.home=true; initMap('home-map',22,80,4.5); refreshMarkers('home-map'); }
+    if(name==='map'&&!mapsInited.map){ mapsInited.map=true; initMap('main-map',22,80,4.5); refreshMarkers('main-map'); }
+    if(name==='alerts'&&!mapsInited.alerts){ mapsInited.alerts=true; initMap('alert-map',22,80,4); refreshMarkers('alert-map'); }
+    if(name==='dashboard') renderDashboard();
+    Object.keys(maps).forEach(id=>{ if(maps[id]) maps[id].invalidateSize(); });
+  },120);
+}
+
+// ===== LIVE SIMULATION =====
+const newsPool=[
+  {title:'Cyclone Intensifies',summary:'Cyclone strengthens near Bay of Bengal — Category 2 warning issued.'},
+  {title:'NDRF Airlifted to Flood Zone',summary:'Teams airlifted to flood-hit districts in Maharashtra.'},
+  {title:'Heat Wave Advisory',summary:'IMD issues severe heat wave warning for Rajasthan and UP.'},
+  {title:'Earthquake Tremors',summary:'Mild tremors of magnitude 3.2 near Uttarakhand.'},
+];
+const alertPool=[
+  {location:'Kolkata, WB',severity:'moderate',details:'Waterlogging in low-lying areas.',lat:22.57,lng:88.36},
+  {location:'Jaipur, Rajasthan',severity:'high',details:'Extreme heat advisory.',lat:26.91,lng:75.78},
+];
+setInterval(()=>{
+  const item=newsPool[Math.floor(Math.random()*newsPool.length)];
+  const n={id:Date.now(),...item,time:new Date().toISOString(),isNew:true};
+  appData.news.unshift(n); if(appData.news.length>15) appData.news.pop();
+  renderNews(); showToast('info','📰',`Update: ${n.title}`);
+},45000);
+setInterval(()=>{
+  const item=alertPool[Math.floor(Math.random()*alertPool.length)];
+  const a={id:Date.now(),...item,time:new Date().toISOString()};
+  appData.alerts.unshift(a); if(appData.alerts.length>20) appData.alerts.pop();
+  renderAlerts(); ['home-map','main-map','alert-map'].forEach(id=>refreshMarkers(id));
+  showToast('error','🚨',`New alert: ${a.location} — ${a.severity.toUpperCase()}`);
+},65000);
+
+// ===== INIT =====
+renderAlerts();
+renderNews();
+showPage('home');
+</script>
+</body>
+</html>
