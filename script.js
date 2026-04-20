@@ -229,7 +229,7 @@ function showPage(name) {
   document.querySelectorAll('.nav-link').forEach(l=>l.classList.remove('active'));
   const page = document.getElementById(`page-${name}`);
   if(page) page.classList.add('active');
-  document.querySelectorAll('.nav-link').forEach(l=>{ if(l.textContent.toLowerCase()===name||(name==='home'&&l.textContent==='Home')) l.classList.add('active'); });
+  document.querySelectorAll('.nav-link').forEach(l=>{ if(l.getAttribute("data-translate") === name||(name==='home'&&l.textContent==='Home')) l.classList.add('active'); });
 
   setTimeout(()=>{
     if(name==='home'&&!mapsInited.home){ mapsInited.home=true; initMap('home-map',22,80,4.5); refreshMarkers('home-map'); }

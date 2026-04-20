@@ -17,12 +17,12 @@
   <div class="nav-inner">
     <div class="logo" onclick="showPage('home')">RESCUE<span>.AI</span><span class="logo-dot"></span></div>
     <div class="nav-links" id="nav-links">
-      <button class="nav-link active" onclick="showPage('home')">Home</button>
-      <button class="nav-link" onclick="showPage('news')">News</button>
-      <button class="nav-link" onclick="showPage('map')">Map</button>
-      <button class="nav-link" onclick="showPage('alerts')">Alerts</button>
-      <button class="nav-link" onclick="showPage('firstaid')">First Aid</button>
-      <button class="nav-link" onclick="showPage('contact')">Contact</button>
+     <button class="nav-link active" data-translate="home" onclick="showPage('home')">Home</button>
+<button class="nav-link" data-translate="news" onclick="showPage('news')">News</button>
+<button class="nav-link" onclick="showPage('map')">Map</button>
+<button class="nav-link" data-translate="alerts" onclick="showPage('alerts')">Alerts</button>
+<button class="nav-link" data-translate="firstaid" onclick="showPage('firstaid')">First Aid</button>
+<button class="nav-link" data-translate="contact" onclick="showPage('contact')">Contact</button>
     </div>
     <div class="nav-actions" id="nav-actions">
        <!-- 🌐 Language Toggle -->
@@ -52,7 +52,9 @@
     <h1>RESCUE<em>.AI</em><br>Intelligent Disaster Response</h1>
     <p>Real-time emergency monitoring, AI-powered alerts, and community disaster response coordination across India.</p>
     <div class="hero-actions">
-      <button class="btn btn-primary btn-lg" onclick="showPage('alerts')">🚨 Emergency Alerts</button>
+      <button class="btn btn-primary btn-lg" data-translate="emergency" onclick="showPage('alerts')">
+🚨 Emergency Alerts
+</button>
       <button class="btn btn-outline btn-lg" onclick="showPage('map')">🗺️ Live Updates</button>
     </div>
   </div>
