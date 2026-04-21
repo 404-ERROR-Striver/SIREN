@@ -91,3 +91,4 @@ setInterval(() => {
 
 const PORT = 5000;
 server.listen(PORT, () => console.log(`RESCUE.AI Server running on port ${PORT}`));
+
